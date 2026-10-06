@@ -62,12 +62,12 @@ func main() {
 	countWords := flag.Bool("w", false, "print the word counts")
 	countChars := flag.Bool("m", false, "print the character counts")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: ccwc [-c] [-l] [-m] [-w] file")
+		fmt.Fprintln(os.Stderr, "usage: ccwc [-c] [-l] [-m] [-w] [file]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	if flag.NArg() != 1 {
+	if flag.NArg() > 1 {
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -77,15 +77,20 @@ func main() {
 		*countBytes, *countLines, *countWords = true, true, true
 	}
 
+	// Read standard input when no file is given.
 	name := flag.Arg(0)
-	f, err := os.Open(name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ccwc: %v\n", err)
-		os.Exit(1)
+	in := io.Reader(os.Stdin)
+	if name != "" {
+		f, err := os.Open(name)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ccwc: %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		in = f
 	}
-	defer f.Close()
 
-	c, err := count(f)
+	c, err := count(in)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ccwc: %s: %v\n", name, err)
 		os.Exit(1)
@@ -104,5 +109,8 @@ func main() {
 	if *countBytes {
 		fmt.Printf("%8d", c.bytes)
 	}
-	fmt.Printf(" %s\n", name)
+	if name != "" {
+		fmt.Printf(" %s", name)
+	}
+	fmt.Println()
 }
