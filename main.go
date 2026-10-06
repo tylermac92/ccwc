@@ -67,9 +67,14 @@ func main() {
 	}
 	flag.Parse()
 
-	if flag.NArg() != 1 || (!*countBytes && !*countLines && !*countWords && !*countChars) {
+	if flag.NArg() != 1 {
 		flag.Usage()
 		os.Exit(2)
+	}
+
+	// With no options, behave like -l -w -c.
+	if !*countBytes && !*countLines && !*countWords && !*countChars {
+		*countBytes, *countLines, *countWords = true, true, true
 	}
 
 	name := flag.Arg(0)
