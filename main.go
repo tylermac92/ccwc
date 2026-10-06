@@ -13,6 +13,7 @@ import (
 type counts struct {
 	lines int64
 	words int64
+	chars int64
 	bytes int64
 }
 
@@ -34,6 +35,11 @@ func count(r io.Reader) (counts, error) {
 		c.bytes += int64(n)
 		c.lines += int64(bytes.Count(buf[:n], []byte{'\n'}))
 		for _, b := range buf[:n] {
+			// Count every byte that is not a UTF-8 continuation byte, so a
+			// multibyte character split across reads is still counted once.
+			if b&0xC0 != 0x80 {
+				c.chars++
+			}
 			if isSpace(b) {
 				inWord = false
 			} else if !inWord {
@@ -54,13 +60,14 @@ func main() {
 	countBytes := flag.Bool("c", false, "print the byte counts")
 	countLines := flag.Bool("l", false, "print the newline counts")
 	countWords := flag.Bool("w", false, "print the word counts")
+	countChars := flag.Bool("m", false, "print the character counts")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: ccwc [-c] [-l] [-w] file")
+		fmt.Fprintln(os.Stderr, "usage: ccwc [-c] [-l] [-m] [-w] file")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	if flag.NArg() != 1 || (!*countBytes && !*countLines && !*countWords) {
+	if flag.NArg() != 1 || (!*countBytes && !*countLines && !*countWords && !*countChars) {
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -79,12 +86,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Same column order as wc: lines, words, then bytes.
+	// Same column order as wc: lines, words, characters, then bytes.
 	if *countLines {
 		fmt.Printf("%8d", c.lines)
 	}
 	if *countWords {
 		fmt.Printf("%8d", c.words)
+	}
+	if *countChars {
+		fmt.Printf("%8d", c.chars)
 	}
 	if *countBytes {
 		fmt.Printf("%8d", c.bytes)
